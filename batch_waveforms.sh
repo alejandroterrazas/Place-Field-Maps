@@ -13,10 +13,7 @@ do
    dsname="narp-alext/$line"
    echo $dsname
    if [ "$line" != "" ]; then
-     aws s3 cp s3://$dsname ./RawData/ --exclude "*" --include "*.t" --include "*.t64" --recursive
-     aws s3 cp s3://$dsname ./RawData/ --exclude '*' --include 'VT1.Nvt' --recursive
-     aws s3 cp s3://$dsname/POSITION ./RawData/ --exclude '*' --include '*' --recursive
-     ./make_placefields.sh $line
+     ./make_waveforms.sh $line
    fi
 done
 

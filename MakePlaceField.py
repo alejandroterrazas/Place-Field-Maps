@@ -26,19 +26,42 @@ recording_date = dsname.split('/')[1].split('_')[0]
 recording_time = dsname.split('/')[1].split('_')[1]
 cellname=tfilename.replace('./RawData/', '')
 outcellname=dsname+'/'+cellname
-xl = pd.DataFrame(columns = ['cell_name',
+
+depth_file = recording_date + ".xlsx"
+print("!!!!!!!!!!!!!!!!!!!!!depthfile", depth_file)
+
+if os.path.exists("./RawData/" + depth_file):
+  depth_df = pd.read_excel("./RawData/" + depth_file)
+  #print("depth_df", depth_df)
+
+  depth_df.drop(depth_df.index[:1])
+  depth_df = depth_df.transpose()
+ # print("depth_df after transpose", depth_df)
+
+  loc = cellname.find('_')
+  trodename = cellname[:loc]
+  trodename = trodename.replace('Sc', 'TT') + "-depth"
+  depth = depth_df[trodename].values[0]
+else:
+  depth = -999
+
+print("DEPTH *********", depth)
+
+if os.path.exists('./'+animal+'PFs.xlsx'):
+  xl = pd.read_excel('./'+animal+'PFs.xlsx')
+else:
+  xl = pd.DataFrame(columns = ['cell_name',
                              'moving_rate', 'stopped_rate', 
                              'info/spike', 'info/sec',
                              'moving_spikes', 'stopped_spikes',
                              's1spikes', 's1_fr',
                              'mspikes', 'm_fr',
-                             's2spikes', 's2_fr'])
+                             's2spikes', 's2_fr', 'depth'])
 
 ts, x, y = vu.readPVDfile(pvdfile)
 x /= 8.2
 xsmooth = np.abs(np.convolve(x, np.ones(100, dtype=np.int), 'valid'))/100
 
-#8.2 pixels per centimer
 #use later to detect direction
 direction = np.where(np.diff(xsmooth)>0, 1, 0)
 
@@ -47,9 +70,36 @@ cum = np.cumsum(np.abs(np.diff(xsmooth)))
 inotmoving = np.where(np.diff(cum)<.025)[0]
 imoving = np.where(np.diff(cum)>=.025)[0]
 
+#linspace args are start, stop, nbins
+#bins = np.linspace(25,525,64)/8.2
+if animal == '10601':
+  print("animal 10601...")
+  bins = np.linspace(105,425,64)/8.2
 
-bins = np.linspace(25,525,64)/8.2
+if animal == '10551':
+  print("animal 10551...")
+  bins = np.linspace(110,425,64)/8.2
 
+if animal == '10604':
+  print("animal 10604...")
+  bins = np.linspace(110,425,64)/8.2
+
+if animal == '10547':
+  print("animal 10547...")
+  bins = np.linspace(110,425,64)/8.2
+
+if animal == '10603':
+  print("animal 10603...")
+  bins = np.linspace(110,425,64)/8.2
+
+if animal == '10608':
+  print("animal 10608...")
+  bins = np.linspace(110,425,64)/8.2
+
+if animal == '10607':
+   print("animal 10607...")
+   bins = np.linspace(130,465,64)/8.2
+  
 occhist, bin_edges = np.histogram(x[imoving],bins=bins)
 print(tfilename)
 vts,_,_,_,_ = vu.getVideoData('./RawData/VT1.Nvt')
@@ -84,17 +134,18 @@ posy = []
 stoppedx = []
 stoppedy = []
 
-for spike in mspikes:
-  closest_t = gu.take_Closest(ts, spike)
-  indx, = np.where(ts == closest_t)
-  #print("i {}".format(x[i]))
-  if indx in imoving:
-    posx.append(x[indx])
-    posy.append(y[indx])
-  else:
-    stoppedx.append(x[indx])
-    stoppedy.append(y[indx])
+#no need to run time-consuming place analysis on interneurons (>5HZ)
 
+for spike in mspikes:
+    closest_t = gu.take_Closest(ts, spike)
+    indx, = np.where(ts == closest_t)
+    #print("i {}".format(x[i]))
+    if indx in imoving:
+      posx.append(x[indx])
+      posy.append(y[indx])
+    else:
+      stoppedx.append(x[indx])
+      stoppedy.append(y[indx])
 
 fig = plt.figure(figsize=(8,10))
 gs = GridSpec(6,4)
@@ -105,9 +156,13 @@ ax1 = plt.subplot(gs[:2,:])
 
 plt.plot(x,y,'r.')
 plt.plot(posx,posy, 'b.')
+plt.plot([np.min(bins),np.min(bins)], [np.min(posy),np.max(posy)], 'k')
+plt.plot([np.max(bins),np.max(bins)], [np.min(posy),np.max(posy)], 'k')
+
 
 occhist, bin_edges = np.histogram(x[imoving],bins=bins)
 occhist = occhist*.016666
+
 moving_time = len(imoving)*.016666
 stopped_time = len(inotmoving)*.016666
 moving_rate = len(posx)/moving_time
@@ -119,12 +174,12 @@ print('total stopped time={}; stopped_rate={}'.format(stopped_time, stopped_rate
 hist, bin_edges = np.histogram(posx,bins=bins)
 
 ax2=plt.subplot(gs[2,:])
-#ax2.set_xlim([25,525])
+  #ax2.set_xlim([25,525])
 ax2.bar(bin_edges[:-1], hist, width=np.diff(bin_edges), align='edge')
 plt.title('Number of spikes')
 
 ax3=plt.subplot(gs[3,:])
-#ax3.set_xlim([25,525])
+  #ax3.set_xlim([25,525])
 ax3.bar(bin_edges[:-1], occhist, width=np.diff(bin_edges), align='edge')
 plt.title('Occupancy in seconds')
 #plt.show()
@@ -133,14 +188,14 @@ corrected=hist/occhist
 corrected[np.isnan(corrected)] = 0
 
 ax4=plt.subplot(gs[4,:])
-#ax4.set_xlim([25,525])
+  #ax4.set_xlim([25,525])
 ax4.bar(bin_edges[:-1], corrected, width=np.diff(bin_edges), align='edge')
-#print(hist/occhist)
+  #print(hist/occhist)
 plt.title('Occupancy normalized firing rate')
 
 occpmf, bin_edges = np.histogram(x[imoving],bins=bins, density=True)
 
-#corrected
+  #corrected
 info_rate, info_per_spike  = spike_info_measures(corrected, occpmf, moving_rate)
 
 ax5=plt.subplot(gs[5,:])
@@ -154,9 +209,8 @@ ax5.text(0.5,.9, "animal:  %s" % animal, ha='left', va='center', fontsize=12)
 ax5.text(0.5,.7, "date:  %s" % recording_date, ha='left', va='center', fontsize=12)
 ax5.text(0.5,.5, "time:  %s" % recording_time.replace('-', ":"), ha='left', va='center', fontsize=12)
 ax5.text(0.5,.3, "cell:  %s" % cellname, ha='left', va='center', fontsize=12)
-
+ax5.text(0.5,.1, "depth: %s" % depth, ha='left', va='center', fontsize=12)
 ax5.set_axis_off()
-
 
 mng = plt.get_current_fig_manager()
 mng.full_screen_toggle()
@@ -169,12 +223,13 @@ xl = xl.append({'cell_name': outcellname,
                  'moving_rate': moving_rate, 'stopped_rate': stopped_rate,
                  'info/spike': info_per_spike, 'info/sec': info_rate, 
                  'moving_spikes': len(posx), 'stopped_spikes': len(stoppedx),
-                 's1spikes': len(s1spikes), 's1_fr': s1_fr, 
+                 's1spikes': len(s1spikes), 's1_fr': s1_fr,
                  'mspikes': len(mspikes), 'm_fr': m_fr,
-                 's2spikes': len(s2spikes), 's2_fr': s2_fr}, 
+                 's2spikes': len(s2spikes), 's2_fr': s2_fr, 'depth': depth}, 
                  ignore_index=True)
-#print(xl)
+print("Appending to XL", xl)
 xl.to_excel(animal+'PFs.xlsx')
 
 #plt.show()
+
 

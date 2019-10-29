@@ -16,11 +16,7 @@ aws s3 cp s3://$dsname/ ./RawData/ --recursive --exclude "*" --exclude "*.png" -
 for tcellname in ./RawData/*.t*; do
   
      echo "Making placemap for $tcellname"
-     python MakePlaceField.py $pvdname $tcellname 0 $1
-     python MakePFRaster.py $pvdname $tcellname
-     python MakeCellSummary.py $tcellname
-     convert $tcellname*.png $tcellname.pdf
+     python MakeHistograms.py $pvdname $tcellname 0 $1
    
 done
 
-#aws s3 cp ./RawData/ s3://$dsname/ --recursive --exclude '*' --include '*.pdf' --include '*.png'
